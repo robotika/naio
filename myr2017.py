@@ -25,12 +25,21 @@ if s is None:
     print('could not open socket')
     sys.exit(1)
 with s:
-#    s.sendall(b'Hello, world')
+    # commad to drive motors
+    s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
     f = open('data171122.bin', 'wb')
     for i in range(1000):
         data = s.recv(1024)
-        print(data)
+        assert len(data) > 7 and data[:6] == b'NAIO01', data
+
+        # odometry
+        if data[6] == 0x06:
+            print(data)
+            # alive command
+            s.sendall(b'NAIO01\xB4\x00\x00\x00\x01' + bytes([i%256,]) + b'\xCD\xCD\xCD\xCD')
+            s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
         f.write(data)
         f.flush()
     f.close()
 
+# vim: expandtab sw=4 ts=4
