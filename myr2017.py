@@ -31,13 +31,16 @@ with s:
     s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
     filename = datetime.datetime.now().strftime("naio%y%m%d_%H%M%S.log")
     f = open(filename, 'wb')
+    prev_time = datetime.datetime.now()
     for i in range(1000):
         data = s.recv(1024)
         assert len(data) > 7 and data[:6] == b'NAIO01', data
 
         # odometry
         if data[6] == 0x06:
-            print(data)
+            t = datetime.datetime.now()
+            print((t - prev_time).microseconds, data)
+            prev_time = t
             # alive command
             s.sendall(b'NAIO01\xB4\x00\x00\x00\x01' + bytes([i%256,]) + b'\xCD\xCD\xCD\xCD')
             s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
