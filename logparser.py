@@ -10,6 +10,8 @@ import struct
 
 def parse(filename):
     with open(filename, 'rb') as f:
+        prev_odo = b'\x00\x00\x00\x00'
+        dist = 0
         while True:
             prefix = f.read(6)
             if len(prefix) == 0:
@@ -19,8 +21,11 @@ def parse(filename):
             size = struct.unpack('>I', f.read(4))[0]
             data = f.read(size)
             if msg_id == b'\x06':
-                print(data)
+                diff = sum([a^b for a, b in zip(prev_odo, data)])
+                prev_odo = data
+                dist += diff
             crc32 = struct.unpack('I', f.read(4))[0]
+        print('Total distance %.2fm' % (dist * 6.465/400.0))
 
 
 if __name__ == '__main__':
@@ -28,3 +33,5 @@ if __name__ == '__main__':
         print(__doc__)
         sys.exit(-1)
     parse(sys.argv[1])
+
+# vim: expandtab sw=4 ts=4
