@@ -4,14 +4,19 @@ usage:
    python logparser.py <log file>
 """
 
+import math
 import sys
 import struct
+
+import matplotlib.pyplot as plt
 
 
 def parse(filename):
     with open(filename, 'rb') as f:
         prev_odo = b'\x00\x00\x00\x00'
-        dist = 0
+        total_dist_raw = 0
+        arr = []
+        pose_arr = []
         while True:
             prefix = f.read(6)
             if len(prefix) == 0:
@@ -20,12 +25,37 @@ def parse(filename):
             msg_id = f.read(1)
             size = struct.unpack('>I', f.read(4))[0]
             data = f.read(size)
+            crc32 = struct.unpack('I', f.read(4))[0]
+
+            # Odometry
             if msg_id == b'\x06':
                 diff = sum([a^b for a, b in zip(prev_odo, data)])
                 prev_odo = data
-                dist += diff
-            crc32 = struct.unpack('I', f.read(4))[0]
-        print('Total distance %.2fm' % (dist * 6.465/400.0))
+                total_dist_raw += diff
+            
+            # Laser
+            if msg_id == b'\x07':
+                assert size == 2*271 + 271, size
+                scan = struct.unpack('>' + 'H'*271, data[:2*271])
+                
+                d = total_dist_raw * 6.465/400.0
+                pose_arr.append((d, 0))
+                for i, dist_mm in enumerate(scan):
+                    if dist_mm > 0:
+                        angle = math.radians(i-135.0)
+                        dist = dist_mm/1000.0
+                        x, y = d + math.cos(angle)*dist, math.sin(angle)*dist
+                        arr.append((x, y))
+
+        plt.plot([x for x, _ in arr], [y for _, y in arr],
+                             'o', linewidth=2)
+        plt.plot([x for x, _ in pose_arr], [y for _, y in pose_arr],
+                             'go', linewidth=2)
+        plt.axes().set_aspect('equal', 'datalim')
+        plt.show()
+                    
+
+        print('Total distance %.2fm' % (total_dist_raw * 6.465/400.0))
 
 
 if __name__ == '__main__':
