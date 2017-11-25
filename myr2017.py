@@ -1,8 +1,8 @@
 # simplest version
 
-# Echo client program
 import socket
 import sys
+import struct
 import datetime
 
 
@@ -30,22 +30,29 @@ with s:
     # commad to drive motors
     s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
     filename = datetime.datetime.now().strftime("naio%y%m%d_%H%M%S.log")
+    print(filename)
     f = open(filename, 'wb')
     prev_time = datetime.datetime.now()
-    for i in range(1000):
+    while True:
         data = s.recv(1024)
-        assert len(data) > 7 and data[:6] == b'NAIO01', data
-
-        # odometry
-        if data[6] == 0x06:
-            t = datetime.datetime.now()
-            print((t - prev_time).microseconds, data)
-            prev_time = t
-            # alive command
-            s.sendall(b'NAIO01\xB4\x00\x00\x00\x01' + bytes([i%256,]) + b'\xCD\xCD\xCD\xCD')
-            s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
         f.write(data)
         f.flush()
+        assert len(data) > 7 and data[:6] == b'NAIO01', data
+
+        msg_id = data[6]
+        size = struct.unpack('>I', data[7:7+4])[0]
+
+        # odometry
+        if msg_id == 0x06:
+            t = datetime.datetime.now()
+            s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
+            prev_time = t
+        elif msg_id == 0x07:
+            assert size == 2*271 + 271, size
+            scan = struct.unpack('>' + 'H'*271, data[11:11+2*271])
+            print(max(scan))
+            if max(scan) == 0:
+                break
     f.close()
 
 # vim: expandtab sw=4 ts=4
