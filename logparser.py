@@ -7,6 +7,7 @@ usage:
 import math
 import sys
 import struct
+import itertools
 
 import matplotlib.pyplot as plt
 
@@ -46,6 +47,17 @@ def parse(filename):
                         dist = dist_mm/1000.0
                         x, y = d + math.cos(angle)*dist, math.sin(angle)*dist
                         arr.append((x, y))
+
+                # Eduro ASCII art
+                step = 5
+                scan2 = [x == 0 and 10000 or x for x in scan]
+                min_dist_arr = [min(i)/1000.0 for i in 
+                        [itertools.islice(scan2, start, start + step) 
+                            for start in range(0, len(scan2), step)]]
+                s = ''
+                for i in min_dist_arr:
+                    s += (i < 0.5 and 'X' or (i<1.0 and 'x' or (i<1.5 and '.' or ' ')))
+                print(s)
 
         plt.plot([x for x, _ in arr], [y for _, y in arr],
                              'o', linewidth=2)
