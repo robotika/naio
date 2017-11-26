@@ -34,6 +34,9 @@ class LoggerTest(unittest.TestCase):
 
             t, stream_id, data = log.read()
             self.assertTrue(t.microseconds > 100)
+            
+            with self.assertRaises(LogEnd):
+                __ = log.read()
 
         with LogReader(filename) as log:
             t, stream_id, data = log.read(only_stream_id=10)

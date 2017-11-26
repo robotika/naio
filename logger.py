@@ -6,6 +6,10 @@ import struct
 
 INFO_STREM_ID = 0
 
+class LogEnd(Exception):
+  pass
+
+
 class LogWriter:
     def __init__(self, prefix='naio', note=''):
         self.start_time = datetime.datetime.now()
@@ -57,6 +61,8 @@ class LogReader:
         "return (time, stream, data)"
         while True:
             header = self.f.read(8)
+            if len(header) < 8:
+                raise LogEnd()
             microseconds, stream_id, size = struct.unpack('IHH', header)
             dt = datetime.timedelta(microseconds=microseconds)
             data = self.f.read(size)
