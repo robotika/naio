@@ -1,4 +1,4 @@
-# simplest version
+# the simplest MYR2017 version
 
 import argparse
 import socket
@@ -6,12 +6,40 @@ import sys
 import struct
 
 from logger import LogWriter
+from robot import Robot
 
 DEFAULT_HOST = '127.0.0.1'    # The remote host
 DEFAULT_PORT = 5559              # The same port as used by the server
 
 INPUT_STREAM = 1
 OUTPUT_STREAM = 2
+
+
+class WrapperIO:
+    def __init__(self, soc, log):
+        self.soc = soc
+        self.log = log
+        self.buf = b''
+
+    def get(self):
+        if len(self.buf) < 1024:
+            data = self.soc.recv(1024)
+            self.log.write(INPUT_STREAM, data)
+            self.buf += data
+
+        assert len(self.buf) > 7 and self.buf[:6] == b'NAIO01', self.buf
+        msg_id = self.buf[6]
+        size = struct.unpack('>I', self.buf[7:7+4])[0]
+        data = self.buf[11:11+size]
+        self.buf = self.buf[11+size+4:]  # cut CRC32
+        return msg_id, data
+
+    def put(self, cmd):
+        msg_id, data = cmd
+        naio_msg = b'NAIO01' + bytes([msg_id]) + struct.pack('>I', len(cmd)) + data + b'\xCD\xCD\xCD\xCD'
+        self.log.write(OUTPUT_STREAM, naio_msg)
+        self.soc.sendall(naio_msg)
+
 
 def main(host, port):
     s = None
@@ -34,32 +62,18 @@ def main(host, port):
         sys.exit(1)
 
     with s, LogWriter(note=str(sys.argv)) as log:
+        print(log.filename)
 
-        # commad to drive motors
-        data = b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD'
-        log.write(OUTPUT_STREAM, data)
-        s.sendall(data)
-
+        io = WrapperIO(s, log)
+        
+        robot = Robot(io.get, io.put)
+        robot.set_speed(0.5, 0.0)
         while True:
-            data = s.recv(1024)
-            log.write(INPUT_STREAM, data)
-
-            assert len(data) > 7 and data[:6] == b'NAIO01', data
-
-            msg_id = data[6]
-            size = struct.unpack('>I', data[7:7+4])[0]
-
-            # odometry
-            if msg_id == 0x06:
-                data = b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD'
-                log.write(OUTPUT_STREAM, data)
-                s.sendall(data)
-            elif msg_id == 0x07:
-                assert size == 2*271 + 271, size
-                scan = struct.unpack('>' + 'H'*271, data[11:11+2*271])
-                print(max(scan))
-                if max(scan) == 0:
-                    break
+            robot.update()
+            max_dist = max(robot.laser)
+            print(max_dist)
+            if max_dist == 0:
+                break
 
 
 if __name__ == '__main__':
