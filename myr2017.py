@@ -6,7 +6,7 @@ import sys
 import struct
 import itertools
 
-from logger import LogWriter
+from logger import LogWriter, LogReader, LogEnd
 from robot import Robot
 
 DEFAULT_HOST = '127.0.0.1'    # The remote host
@@ -17,15 +17,19 @@ OUTPUT_STREAM = 2
 
 
 class WrapperIO:
-    def __init__(self, soc, log):
+    def __init__(self, soc, log, ignore_ref_output=False):
         self.soc = soc
         self.log = log
+        self.ignore_ref_output = ignore_ref_output
         self.buf = b''
 
     def get(self):
         if len(self.buf) < 1024:
-            data = self.soc.recv(1024)
-            self.log.write(INPUT_STREAM, data)
+            if self.soc is None:
+                data = self.log.read(INPUT_STREAM)[2]
+            else:
+                data = self.soc.recv(1024)
+                self.log.write(INPUT_STREAM, data)
             self.buf += data
 
         assert len(self.buf) > 7 and self.buf[:6] == b'NAIO01', self.buf
@@ -38,8 +42,13 @@ class WrapperIO:
     def put(self, cmd):
         msg_id, data = cmd
         naio_msg = b'NAIO01' + bytes([msg_id]) + struct.pack('>I', len(cmd)) + data + b'\xCD\xCD\xCD\xCD'
-        self.log.write(OUTPUT_STREAM, naio_msg)
-        self.soc.sendall(naio_msg)
+        if self.soc is None:
+            ref = self.log.read(OUTPUT_STREAM)[2]
+            if not self.ignore_ref_output:
+                assert naio_msg == ref, (naio_msg, ref)
+        else:
+            self.log.write(OUTPUT_STREAM, naio_msg)
+            self.soc.sendall(naio_msg)
 
 
 def laser2ascii(scan):
@@ -65,7 +74,18 @@ def laser2ascii(scan):
     return s, mid-left, right-mid
 
 
-def main(host, port, verbose=False):
+def move_one_meter(robot):
+    odo_start = robot.odometry_left_raw + robot.odometry_right_raw
+    robot.move_forward()
+    dist = 0.0
+    while dist < 1.0:
+        robot.update()
+        odo = robot.odometry_left_raw + robot.odometry_right_raw - odo_start
+        dist = 0.06465 * odo / 4.0
+    robot.stop()
+
+
+def main(host, port):
     s = None
     for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
         af, socktype, proto, canonname, sa = res
@@ -87,10 +107,22 @@ def main(host, port, verbose=False):
 
     with s, LogWriter(note=str(sys.argv)) as log:
         print(log.filename)
-
         io = WrapperIO(s, log)
-        
-        robot = Robot(io.get, io.put)
+        yield Robot(io.get, io.put)
+        print(log.filename)
+
+
+def main_replay(filename, force):
+    "replay existing log file"
+
+    with LogReader(filename) as log:
+        print('REPLAY', log.filename)
+        io = WrapperIO(None, log, ignore_ref_output=force)
+        yield Robot(io.get, io.put)
+        print('REPLAY', log.filename)
+
+
+def play_game(robot, verbose):
         robot.move_forward()
         while True:
             robot.update()
@@ -107,9 +139,11 @@ def main(host, port, verbose=False):
                 print('%4d' % max_dist, triplet)
             if max_dist == 0:
                 break
+
+        move_one_meter(robot)
+
         robot.stop()
         robot.update()
-        print(log.filename)
 
 
 if __name__ == '__main__':
@@ -118,10 +152,21 @@ if __name__ == '__main__':
                         help='IP address of the host')
     parser.add_argument('--port', dest='port', default=DEFAULT_PORT,
                         help='port number of the robot or simulator')
-    parser.add_argument('--note', help='add run description')    
-    parser.add_argument('--verbose', help='show laser output', action='store_true')    
+    parser.add_argument('--note', help='add run description')
+    parser.add_argument('--verbose', help='show laser output', action='store_true')
+
+    parser.add_argument('--replay', help='replay existing log file')
+    parser.add_argument('--force', '-F', dest='force', action='store_true', help='force replay even for failing output asserts')
     args = parser.parse_args()
     
-    main(args.host, args.port, verbose=args.verbose)
+    if args.replay is None:
+        for robot in main(args.host, args.port):
+            play_game(robot, verbose=args.verbose)
+    else:
+        for robot in main_replay(args.replay, args.force):
+            try:
+                play_game(robot, verbose=args.verbose)
+            except LogEnd:
+                print("Exception LogEnd")
 
 # vim: expandtab sw=4 ts=4
