@@ -16,6 +16,28 @@ from logger import LogReader, LogEnd
 
 INPUT_STREAM = 1
 
+def naio_packets(log):
+    WRAP_SIZE = 6 + 1 + 4 + 4  # NAIO01, type, size + CRC32
+    buf = b''
+    while True:
+        try:
+            buf += log.read(INPUT_STREAM)[2]
+        except LogEnd:
+            break
+
+    while len(buf) > 0:
+        if len(buf) >= WRAP_SIZE:
+            prefix = buf[:6]
+            assert prefix == b'NAIO01', prefix
+            if prefix == b'NAIO01':
+                size = struct.unpack_from('>I', buf, 6+1)[0]
+                if len(buf) >= size + WRAP_SIZE:
+                    yield buf[:size + WRAP_SIZE]
+                    buf = buf[size + WRAP_SIZE:]
+            else:
+                print('Skipping', buf[0])
+                buf = buf[1:]  # cut one byte
+
 
 def parse(filename):
     with LogReader(filename) as log:
@@ -23,19 +45,14 @@ def parse(filename):
         total_dist_raw = 0
         arr = []
         pose_arr = []
-        while True:
-            try:
-                __, __, item = log.read(INPUT_STREAM)
-            except LogEnd:
-                break
-
+        for item in naio_packets(log):
             prefix, item = item[:6], item[6:]
             assert prefix == b'NAIO01', prefix
             msg_id, item = item[:1], item[1:]
             size, item = struct.unpack('>I', item[:4])[0], item[4:]
             data, item = item[:size], item[size:]
             crc32, item = struct.unpack('I', item[:4])[0], item[4:]
-#            assert item == b'', item  # failing now due to multiple message in the buffer
+            assert item == b'', item  # failing now due to multiple message in the buffer
 
             # Odometry
             if msg_id == b'\x06':
