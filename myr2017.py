@@ -54,7 +54,15 @@ def laser2ascii(scan):
         s += (d < 0.5 and 'X' or (d<1.0 and 'x' or (d<1.5 and '.' or ' ')))
     mid = int(len(s)/2)
     s = s[:mid] + 'C' + s[mid:]
-    return s
+
+    limit = 1.0
+    left, right = mid, mid
+    while left > 0 and min_dist_arr[left] > limit:
+        left -= 1
+    while right < len(min_dist_arr) and min_dist_arr[right] > limit:
+        right += 1
+
+    return s, mid-left, right-mid
 
 
 def main(host, port, verbose=False):
@@ -87,12 +95,21 @@ def main(host, port, verbose=False):
         while True:
             robot.update()
             max_dist = max(robot.laser)
+            triplet = laser2ascii(robot.laser)
+            s, left, right = triplet
+            if left < right:
+                robot.move_right()
+            elif left > right:
+                robot.move_left()
+            else:
+                robot.move_forward()
             if verbose:
-                print('%4d' % max_dist, laser2ascii(robot.laser))
+                print('%4d' % max_dist, triplet)
             if max_dist == 0:
                 break
         robot.stop()
         robot.update()
+        print(log.filename)
 
 
 if __name__ == '__main__':
