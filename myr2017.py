@@ -4,11 +4,14 @@ import argparse
 import socket
 import sys
 import struct
-import datetime
 
+from logger import LogWriter
 
 DEFAULT_HOST = '127.0.0.1'    # The remote host
 DEFAULT_PORT = 5559              # The same port as used by the server
+
+INPUT_STREAM = 1
+OUTPUT_STREAM = 2
 
 def main(host, port):
     s = None
@@ -29,17 +32,18 @@ def main(host, port):
     if s is None:
         print('could not open socket')
         sys.exit(1)
-    with s:
+
+    with s, LogWriter(note=str(sys.argv)) as log:
+
         # commad to drive motors
-        s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
-        filename = datetime.datetime.now().strftime("naio%y%m%d_%H%M%S.log")
-        print(filename)
-        f = open(filename, 'wb')
-        prev_time = datetime.datetime.now()
+        data = b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD'
+        log.write(OUTPUT_STREAM, data)
+        s.sendall(data)
+
         while True:
             data = s.recv(1024)
-            f.write(data)
-            f.flush()
+            log.write(INPUT_STREAM, data)
+
             assert len(data) > 7 and data[:6] == b'NAIO01', data
 
             msg_id = data[6]
@@ -47,16 +51,16 @@ def main(host, port):
 
             # odometry
             if msg_id == 0x06:
-                t = datetime.datetime.now()
-                s.sendall(b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD')
-                prev_time = t
+                data = b'NAIO01\x01\x00\x00\x00\x02\x70\x70\xCD\xCD\xCD\xCD'
+                log.write(OUTPUT_STREAM, data)
+                s.sendall(data)
             elif msg_id == 0x07:
                 assert size == 2*271 + 271, size
                 scan = struct.unpack('>' + 'H'*271, data[11:11+2*271])
                 print(max(scan))
                 if max(scan) == 0:
                     break
-        f.close()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Navigate Naio robot in "Move Your Robot" competition')
@@ -64,6 +68,7 @@ if __name__ == '__main__':
                         help='IP address of the host')
     parser.add_argument('--port', dest='port', default=DEFAULT_PORT,
                         help='port number of the robot or simulator')
+    parser.add_argument('--note', help='add run description')    
     args = parser.parse_args()
     
     main(args.host, args.port)
