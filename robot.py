@@ -1,5 +1,8 @@
 # a robot with put/get items interface
 
+import struct
+
+
 MOTOR_ID = 0x01
 ODOMETRY_ID = 0x05
 LASER_ID = 0x07
