@@ -52,6 +52,8 @@ def laser2ascii(scan):
     s = ''
     for d in min_dist_arr:
         s += (d < 0.5 and 'X' or (d<1.0 and 'x' or (d<1.5 and '.' or ' ')))
+    mid = int(len(s)/2)
+    s = s[:mid] + 'C' + s[mid:]
     return s
 
 
