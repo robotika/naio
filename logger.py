@@ -42,4 +42,37 @@ class LogWriter:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+
+class LogReader:
+    def __init__(self, filename):
+        self.filename = filename
+        self.f = open(self.filename, 'rb')
+        data = self.f.read(4)
+        assert data == b'Pyr\x00', data
+        
+        data = self.f.read(12)
+        self.start_time = datetime.datetime(*struct.unpack('HBBBBBI', data))
+
+    def read(self, only_stream_id=None):
+        "return (time, stream, data)"
+        while True:
+            header = self.f.read(8)
+            microseconds, stream_id, size = struct.unpack('IHH', header)
+            dt = datetime.timedelta(microseconds=microseconds)
+            data = self.f.read(size)
+            if only_stream_id is None or only_stream_id == stream_id:
+                return dt, stream_id, data
+
+    def close(self):
+        self.f.close()
+        self.f = None
+
+
+    # context manager functions
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
 # vim: expandtab sw=4 ts=4
