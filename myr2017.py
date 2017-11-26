@@ -4,6 +4,7 @@ import argparse
 import socket
 import sys
 import struct
+import itertools
 
 from logger import LogWriter
 from robot import Robot
@@ -41,7 +42,20 @@ class WrapperIO:
         self.soc.sendall(naio_msg)
 
 
-def main(host, port):
+def laser2ascii(scan):
+    "Eduro ASCII art"
+    step = 5
+    scan2 = [x == 0 and 10000 or x for x in scan]
+    min_dist_arr = [min(i)/1000.0 for i in 
+                        [itertools.islice(scan2, start, start + step) 
+                            for start in range(0, len(scan2), step)]]
+    s = ''
+    for d in min_dist_arr:
+        s += (d < 0.5 and 'X' or (d<1.0 and 'x' or (d<1.5 and '.' or ' ')))
+    return s
+
+
+def main(host, port, verbose=False):
     s = None
     for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
         af, socktype, proto, canonname, sa = res
@@ -71,7 +85,8 @@ def main(host, port):
         while True:
             robot.update()
             max_dist = max(robot.laser)
-            print(max_dist)
+            if verbose:
+                print('%4d' % max_dist, laser2ascii(robot.laser))
             if max_dist == 0:
                 break
 
@@ -83,8 +98,9 @@ if __name__ == '__main__':
     parser.add_argument('--port', dest='port', default=DEFAULT_PORT,
                         help='port number of the robot or simulator')
     parser.add_argument('--note', help='add run description')    
+    parser.add_argument('--verbose', help='show laser output', action='store_true')    
     args = parser.parse_args()
     
-    main(args.host, args.port)
+    main(args.host, args.port, verbose=args.verbose)
 
 # vim: expandtab sw=4 ts=4
