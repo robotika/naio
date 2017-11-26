@@ -81,7 +81,7 @@ def main(host, port, verbose=False):
         io = WrapperIO(s, log)
         
         robot = Robot(io.get, io.put)
-        robot.set_speed(0.5, 0.0)
+        robot.move_forward()
         while True:
             robot.update()
             max_dist = max(robot.laser)
@@ -89,6 +89,8 @@ def main(host, port, verbose=False):
                 print('%4d' % max_dist, laser2ascii(robot.laser))
             if max_dist == 0:
                 break
+        robot.stop()
+        robot.update()
 
 
 if __name__ == '__main__':

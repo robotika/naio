@@ -35,14 +35,18 @@ class Robot:
 
         self.put((MOTOR_ID, self.get_motor_cmd()))
 
-    def set_speed(self, speed, angular_speed):
-        assert angular_speed == 0.0  # not implemented yet
-        if speed > 0.0:
-            self.motor_pwm = [0x70, 0x70]
-        elif speed < 0.0:
-            self.motor_pwm = [-0x70, -0x70]
-        else:
-            self.motor_pwm = [0, 0]
+    # Motion Commands
+    def move_forward(self):
+        self.motor_pwm = [0x70, 0x70]
+
+    def move_left(self):
+        self.motor_pwm = [0x40, 0x70]
+
+    def move_right(self):
+        self.motor_pwm = [0x70, 0x40]
+
+    def stop(self):
+        self.motor_pwm = [0, 0]
 
     def update_laser(self, data):
         assert len(data) == 2*271 + 271, len(data)
