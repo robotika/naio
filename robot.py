@@ -4,7 +4,7 @@ import struct
 
 
 MOTOR_ID = 0x01
-ODOMETRY_ID = 0x05
+ODOMETRY_ID = 0x06
 LASER_ID = 0x07
 
 
