@@ -85,6 +85,13 @@ def move_one_meter(robot):
     robot.stop()
 
 
+def turn_right_90deg(robot):
+    robot.turn_right()
+    for i in range(100):
+        robot.update()
+    robot.stop()
+
+
 def main(host, port):
     s = None
     for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
@@ -141,6 +148,7 @@ def play_game(robot, verbose):
                 break
 
         move_one_meter(robot)
+        turn_right_90deg(robot)
 
         robot.stop()
         robot.update()

@@ -45,6 +45,12 @@ class Robot:
     def move_right(self):
         self.motor_pwm = [0x70, 0x40]
 
+    def turn_left(self):
+        self.motor_pwm = [0x100-0x70, 0x70]
+
+    def turn_right(self):
+        self.motor_pwm = [0x70, 0x100-0x70]
+
     def stop(self):
         self.motor_pwm = [0, 0]
 
