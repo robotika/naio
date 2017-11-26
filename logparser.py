@@ -11,22 +11,31 @@ import itertools
 
 import matplotlib.pyplot as plt
 
+from logger import LogReader, LogEnd
+
+
+INPUT_STREAM = 1
+
 
 def parse(filename):
-    with open(filename, 'rb') as f:
+    with LogReader(filename) as log:
         prev_odo = b'\x00\x00\x00\x00'
         total_dist_raw = 0
         arr = []
         pose_arr = []
         while True:
-            prefix = f.read(6)
-            if len(prefix) == 0:
+            try:
+                __, __, item = log.read(INPUT_STREAM)
+            except LogEnd:
                 break
+
+            prefix, item = item[:6], item[6:]
             assert prefix == b'NAIO01', prefix
-            msg_id = f.read(1)
-            size = struct.unpack('>I', f.read(4))[0]
-            data = f.read(size)
-            crc32 = struct.unpack('I', f.read(4))[0]
+            msg_id, item = item[:1], item[1:]
+            size, item = struct.unpack('>I', item[:4])[0], item[4:]
+            data, item = item[:size], item[size:]
+            crc32, item = struct.unpack('I', item[:4])[0], item[4:]
+#            assert item == b'', item  # failing now due to multiple message in the buffer
 
             # Odometry
             if msg_id == b'\x06':
