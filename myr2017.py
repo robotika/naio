@@ -95,9 +95,12 @@ def move_one_meter(robot):
 def turn_right_90deg(robot):
     robot.annot(b'TAG:turn_right_90deg:BEGIN')
     robot.turn_right()
+    gyro_sum = 0
     for i in range(100):
         robot.update()
+        gyro_sum += robot.gyro_raw[2]  # time is required!
     robot.stop()
+    print('gyro_sum', gyro_sum)
     robot.annot(b'TAG:turn_right_90deg:END')
 
 

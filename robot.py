@@ -6,6 +6,7 @@ import struct
 MOTOR_ID = 0x01
 ODOMETRY_ID = 0x06
 LASER_ID = 0x07
+GYRO_ID = 0x0A
 
 
 class Robot:
@@ -19,6 +20,7 @@ class Robot:
         self.laser = None
         self.odometry_left_raw = 0
         self.odometry_right_raw = 0
+        self.gyro_raw = None
 
         self.motor_pwm = [0, 0]
         self.prev_odo = None
@@ -30,6 +32,8 @@ class Robot:
                 self.update_laser(data)
             elif msg_type == ODOMETRY_ID:
                 self.update_odometry(data)
+            elif msg_type == GYRO_ID:
+                self.update_gyro(data)
 
             if msg_type == self.term:
                 break
@@ -72,6 +76,10 @@ class Robot:
             self.odometry_left_raw += diff[2] + diff[3]
         self.prev_odo = data
 
+    def update_gyro(self, data):
+        assert len(data) == 6, len(data)
+        # X, Y, Z (gain factor 30.5)
+        self.gyro_raw = struct.unpack('>hhh', data)
 
     def get_motor_cmd(self):
         return bytes(self.motor_pwm)
