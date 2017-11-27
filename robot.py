@@ -9,11 +9,12 @@ LASER_ID = 0x07
 
 
 class Robot:
-    def __init__(self, get, put, term=LASER_ID):
+    def __init__(self, get, put, annot=None, term=LASER_ID):
         "provide input and output methods"
         self.get = get
         self.put = put
         self.term = term
+        self._annot = annot
         
         self.laser = None
         self.odometry_left_raw = 0
@@ -34,6 +35,10 @@ class Robot:
                 break
 
         self.put((MOTOR_ID, self.get_motor_cmd()))
+
+    def annot(self, annotation):
+        'note, that annotation is expected binary bytes'
+        self._annot(annotation)
 
     # Motion Commands
     def move_forward(self):

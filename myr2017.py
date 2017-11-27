@@ -12,6 +12,7 @@ from robot import Robot
 DEFAULT_HOST = '127.0.0.1'    # The remote host
 DEFAULT_PORT = 5559              # The same port as used by the server
 
+ANNOT_STREAM = 0  # the same as debug/info
 INPUT_STREAM = 1
 OUTPUT_STREAM = 2
 
@@ -50,6 +51,10 @@ class WrapperIO:
             self.log.write(OUTPUT_STREAM, naio_msg)
             self.soc.sendall(naio_msg)
 
+    def annot(self, annotation):
+        if self.soc is not None:
+            self.log.write(ANNOT_STREAM, annotation)
+
 
 def laser2ascii(scan):
     "Eduro ASCII art"
@@ -75,6 +80,7 @@ def laser2ascii(scan):
 
 
 def move_one_meter(robot):
+    robot.annot(b'TAG:move_one_meter:BEGIN')
     odo_start = robot.odometry_left_raw + robot.odometry_right_raw
     robot.move_forward()
     dist = 0.0
@@ -83,13 +89,16 @@ def move_one_meter(robot):
         odo = robot.odometry_left_raw + robot.odometry_right_raw - odo_start
         dist = 0.06465 * odo / 4.0
     robot.stop()
+    robot.annot(b'TAG:move_one_meter:END')
 
 
 def turn_right_90deg(robot):
+    robot.annot(b'TAG:turn_right_90deg:BEGIN')
     robot.turn_right()
     for i in range(100):
         robot.update()
     robot.stop()
+    robot.annot(b'TAG:turn_right_90deg:END')
 
 
 def main(host, port):
@@ -115,7 +124,7 @@ def main(host, port):
     with s, LogWriter(note=str(sys.argv)) as log:
         print(log.filename)
         io = WrapperIO(s, log)
-        yield Robot(io.get, io.put)
+        yield Robot(io.get, io.put, io.annot)
         print(log.filename)
 
 
@@ -125,7 +134,7 @@ def main_replay(filename, force):
     with LogReader(filename) as log:
         print('REPLAY', log.filename)
         io = WrapperIO(None, log, ignore_ref_output=force)
-        yield Robot(io.get, io.put)
+        yield Robot(io.get, io.put, io.annot)
         print('REPLAY', log.filename)
 
 
