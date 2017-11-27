@@ -5,6 +5,7 @@ import socket
 import sys
 import struct
 import itertools
+from datetime import timedelta
 
 from logger import LogWriter, LogReader, LogEnd
 from robot import Robot
@@ -97,14 +98,19 @@ def turn_right_90deg(robot):
     robot.annot(b'TAG:turn_right_90deg:BEGIN')
     robot.turn_right()
     gyro_sum = 0
-    prev_time = robot.time
+    start_time = robot.time
     num_updates = 0
-    for i in range(100):
+    while robot.time - start_time < timedelta(minutes=1):
         robot.update()
         gyro_sum += robot.gyro_raw[2]  # time is required!
         num_updates += 1
+        # the updates are 10Hz (based on laser measurements)
+        angle = (gyro_sum * 0.1) * 30.5/1000.0
+        # also it looks the rotation (in Simulatoz) is clockwise
+        if angle > 90.0:  # TODO lower threshold for minor corrections
+            break
     robot.stop()
-    print('gyro_sum', gyro_sum, robot.time - prev_time, num_updates)
+    print('gyro_sum', gyro_sum, robot.time - start_time, num_updates)
     robot.annot(b'TAG:turn_right_90deg:END')
 
 
