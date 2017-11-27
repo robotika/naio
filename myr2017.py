@@ -5,7 +5,9 @@ import socket
 import sys
 import struct
 import itertools
+import zlib
 from datetime import timedelta
+from threading import Thread
 
 from logger import LogWriter, LogReader, LogEnd
 from robot import Robot
@@ -16,6 +18,9 @@ DEFAULT_PORT = 5559              # The same port as used by the server
 ANNOT_STREAM = 0  # the same as debug/info
 INPUT_STREAM = 1
 OUTPUT_STREAM = 2
+VIDEO_STREAM = 3
+
+VIDEO_COMPRESSION_LEVEL = 7  # zlib parameter
 
 
 class WrapperIO:
@@ -133,7 +138,7 @@ def navigate_row(robot, verbose):
             break
 
 
-def main(host, port):
+def connect(host, port):
     s = None
     for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
         af, socktype, proto, canonname, sa = res
@@ -150,14 +155,52 @@ def main(host, port):
             continue
         break
     if s is None:
-        print('could not open socket')
+        print('could not open socket', (host, port))
         sys.exit(1)
+    return s
+
+
+class VideoRecorder(Thread):
+
+    def __init__(self, soc, log):
+        Thread.__init__(self)
+        self.setDaemon(True)
+        self.soc = soc
+        self.log = log
+
+    def run(self):
+        print('Video Recorder started')
+        while True:
+            try:
+                data = self.soc.recv(10000)
+            except:
+                print('Video Terminated')
+                break
+            # maybe compression could be part of LogWriter??
+            self.log.write(VIDEO_STREAM, zlib.compress(data, VIDEO_COMPRESSION_LEVEL))
+
+
+def main(host, port, video_port=None):
+    s = connect(host, port)
+    video_socket = None
+    if video_port is not None:
+        video_socket = connect(host, video_port)
 
     with s, LogWriter(note=str(sys.argv)) as log:
         print(log.filename)
         io = WrapperIO(s, log)
+        
+        recorder = None
+        if video_socket is not None:
+            recorder = VideoRecorder(video_socket, log)
+            recorder.start()
+
         yield Robot(io.get, io.put, io.annot)
         print(log.filename)
+
+        if video_socket is not None:
+            video_socket.close()
+            recorder.join()
 
 
 def main_replay(filename, force):
@@ -190,13 +233,16 @@ if __name__ == '__main__':
                         help='port number of the robot or simulator')
     parser.add_argument('--note', help='add run description')
     parser.add_argument('--verbose', help='show laser output', action='store_true')
+    parser.add_argument('--video-port', dest='video_port',
+                        help='optional video port 5558 for simulator, default "no video"')
 
     parser.add_argument('--replay', help='replay existing log file')
-    parser.add_argument('--force', '-F', dest='force', action='store_true', help='force replay even for failing output asserts')
+    parser.add_argument('--force', '-F', dest='force', action='store_true',
+                        help='force replay even for failing output asserts')
     args = parser.parse_args()
     
     if args.replay is None:
-        for robot in main(args.host, args.port):
+        for robot in main(args.host, args.port, args.video_port):
             play_game(robot, verbose=args.verbose)
     else:
         for robot in main_replay(args.replay, args.force):
