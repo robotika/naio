@@ -171,9 +171,11 @@ def main_replay(filename, force):
 
 
 def play_game(robot, verbose):
-    navigate_row(robot, verbose)
-    move_one_meter(robot)
-    turn_right_90deg(robot)
+    for i in range(10):
+        navigate_row(robot, verbose)
+        move_one_meter(robot)
+        turn_right_90deg(robot)
+        turn_right_90deg(robot)
 
     robot.stop()
     robot.update()
