@@ -5,6 +5,7 @@ import socket
 import sys
 import struct
 import itertools
+from datetime import timedelta
 
 from logger import LogWriter, LogReader, LogEnd
 from robot import Robot
@@ -12,6 +13,7 @@ from robot import Robot
 DEFAULT_HOST = '127.0.0.1'    # The remote host
 DEFAULT_PORT = 5559              # The same port as used by the server
 
+ANNOT_STREAM = 0  # the same as debug/info
 INPUT_STREAM = 1
 OUTPUT_STREAM = 2
 
@@ -22,14 +24,15 @@ class WrapperIO:
         self.log = log
         self.ignore_ref_output = ignore_ref_output
         self.buf = b''
+        self.time = None
 
     def get(self):
         if len(self.buf) < 1024:
             if self.soc is None:
-                data = self.log.read(INPUT_STREAM)[2]
+                self.time, __, data = self.log.read(INPUT_STREAM)
             else:
                 data = self.soc.recv(1024)
-                self.log.write(INPUT_STREAM, data)
+                self.time = self.log.write(INPUT_STREAM, data)
             self.buf += data
 
         assert len(self.buf) > 7 and self.buf[:6] == b'NAIO01', self.buf
@@ -37,7 +40,7 @@ class WrapperIO:
         size = struct.unpack('>I', self.buf[7:7+4])[0]
         data = self.buf[11:11+size]
         self.buf = self.buf[11+size+4:]  # cut CRC32
-        return msg_id, data
+        return self.time, msg_id, data
 
     def put(self, cmd):
         msg_id, data = cmd
@@ -49,6 +52,10 @@ class WrapperIO:
         else:
             self.log.write(OUTPUT_STREAM, naio_msg)
             self.soc.sendall(naio_msg)
+
+    def annot(self, annotation):
+        if self.soc is not None:
+            self.log.write(ANNOT_STREAM, annotation)
 
 
 def laser2ascii(scan):
@@ -74,15 +81,56 @@ def laser2ascii(scan):
     return s, mid-left, right-mid
 
 
-def move_one_meter(robot):
+def move_straight(robot, how_far):
+    robot.annot(b'TAG:move_one_meter:BEGIN')
     odo_start = robot.odometry_left_raw + robot.odometry_right_raw
     robot.move_forward()
     dist = 0.0
-    while dist < 1.0:
+    while dist < how_far:
         robot.update()
         odo = robot.odometry_left_raw + robot.odometry_right_raw - odo_start
         dist = 0.06465 * odo / 4.0
     robot.stop()
+    robot.annot(b'TAG:move_one_meter:END')
+
+
+def turn_right_90deg(robot):
+    robot.annot(b'TAG:turn_right_90deg:BEGIN')
+    robot.turn_right()
+    gyro_sum = 0
+    start_time = robot.time
+    num_updates = 0
+    while robot.time - start_time < timedelta(minutes=1):
+        robot.update()
+        gyro_sum += robot.gyro_raw[2]  # time is required!
+        num_updates += 1
+        # the updates are 10Hz (based on laser measurements)
+        angle = (gyro_sum * 0.1) * 30.5/1000.0
+        # also it looks the rotation (in Simulatoz) is clockwise
+        if angle > 90.0:  # TODO lower threshold for minor corrections
+            break
+    robot.stop()
+    print('gyro_sum', gyro_sum, robot.time - start_time, num_updates)
+    robot.annot(b'TAG:turn_right_90deg:END')
+
+
+def navigate_row(robot, verbose):
+    robot.move_forward()
+    while True:
+        robot.update()
+        max_dist = max(robot.laser)
+        triplet = laser2ascii(robot.laser)
+        s, left, right = triplet
+        if left < right:
+            robot.move_right()
+        elif left > right:
+            robot.move_left()
+        else:
+            robot.move_forward()
+        if verbose:
+            print('%4d' % max_dist, triplet)
+        if max_dist == 0:
+            break
 
 
 def main(host, port):
@@ -108,7 +156,7 @@ def main(host, port):
     with s, LogWriter(note=str(sys.argv)) as log:
         print(log.filename)
         io = WrapperIO(s, log)
-        yield Robot(io.get, io.put)
+        yield Robot(io.get, io.put, io.annot)
         print(log.filename)
 
 
@@ -118,32 +166,20 @@ def main_replay(filename, force):
     with LogReader(filename) as log:
         print('REPLAY', log.filename)
         io = WrapperIO(None, log, ignore_ref_output=force)
-        yield Robot(io.get, io.put)
+        yield Robot(io.get, io.put, io.annot)
         print('REPLAY', log.filename)
 
 
 def play_game(robot, verbose):
-        robot.move_forward()
-        while True:
-            robot.update()
-            max_dist = max(robot.laser)
-            triplet = laser2ascii(robot.laser)
-            s, left, right = triplet
-            if left < right:
-                robot.move_right()
-            elif left > right:
-                robot.move_left()
-            else:
-                robot.move_forward()
-            if verbose:
-                print('%4d' % max_dist, triplet)
-            if max_dist == 0:
-                break
+    for i in range(10):
+        navigate_row(robot, verbose)
+        move_straight(robot, how_far=1.2)
+        turn_right_90deg(robot)
+        move_straight(robot, how_far=0.7)
+        turn_right_90deg(robot)
 
-        move_one_meter(robot)
-
-        robot.stop()
-        robot.update()
+    robot.stop()
+    robot.update()
 
 
 if __name__ == '__main__':

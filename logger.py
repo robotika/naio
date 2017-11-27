@@ -33,6 +33,7 @@ class LogWriter:
                 stream_id, len(data)))
         self.f.write(data)
         self.f.flush()
+        return dt
 
     def close(self):
         self.f.close()
