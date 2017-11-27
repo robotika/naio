@@ -114,6 +114,25 @@ def turn_right_90deg(robot):
     robot.annot(b'TAG:turn_right_90deg:END')
 
 
+def navigate_row(robot, verbose):
+    robot.move_forward()
+    while True:
+        robot.update()
+        max_dist = max(robot.laser)
+        triplet = laser2ascii(robot.laser)
+        s, left, right = triplet
+        if left < right:
+            robot.move_right()
+        elif left > right:
+            robot.move_left()
+        else:
+            robot.move_forward()
+        if verbose:
+            print('%4d' % max_dist, triplet)
+        if max_dist == 0:
+            break
+
+
 def main(host, port):
     s = None
     for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
@@ -152,28 +171,12 @@ def main_replay(filename, force):
 
 
 def play_game(robot, verbose):
-        robot.move_forward()
-        while True:
-            robot.update()
-            max_dist = max(robot.laser)
-            triplet = laser2ascii(robot.laser)
-            s, left, right = triplet
-            if left < right:
-                robot.move_right()
-            elif left > right:
-                robot.move_left()
-            else:
-                robot.move_forward()
-            if verbose:
-                print('%4d' % max_dist, triplet)
-            if max_dist == 0:
-                break
+    navigate_row(robot, verbose)
+    move_one_meter(robot)
+    turn_right_90deg(robot)
 
-        move_one_meter(robot)
-        turn_right_90deg(robot)
-
-        robot.stop()
-        robot.update()
+    robot.stop()
+    robot.update()
 
 
 if __name__ == '__main__':
