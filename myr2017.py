@@ -81,12 +81,12 @@ def laser2ascii(scan):
     return s, mid-left, right-mid
 
 
-def move_one_meter(robot):
+def move_straight(robot, how_far):
     robot.annot(b'TAG:move_one_meter:BEGIN')
     odo_start = robot.odometry_left_raw + robot.odometry_right_raw
     robot.move_forward()
     dist = 0.0
-    while dist < 1.0:
+    while dist < how_far:
         robot.update()
         odo = robot.odometry_left_raw + robot.odometry_right_raw - odo_start
         dist = 0.06465 * odo / 4.0
@@ -173,8 +173,9 @@ def main_replay(filename, force):
 def play_game(robot, verbose):
     for i in range(10):
         navigate_row(robot, verbose)
-        move_one_meter(robot)
+        move_straight(robot, how_far=1.2)
         turn_right_90deg(robot)
+        move_straight(robot, how_far=0.7)
         turn_right_90deg(robot)
 
     robot.stop()
