@@ -18,9 +18,10 @@ class LoggerTest(unittest.TestCase):
             self.assertTrue(log.filename.startswith('tmpp'))
             filename = log.filename
             start_time = log.start_time
-            log.write(10, b'\x01\x02\x02\x04')
+            t1 = log.write(10, b'\x01\x02\x02\x04')
             time.sleep(0.01)
-            log.write(10, b'\x05\x06\x07\x08')
+            t2 = log.write(10, b'\x05\x06\x07\x08')
+            self.assertLess(t1, t2)
         
         with LogReader(filename) as log:
             self.assertEqual(start_time, log.start_time)

@@ -24,10 +24,11 @@ class Robot:
 
         self.motor_pwm = [0, 0]
         self.prev_odo = None
+        self.time = None
 
     def update(self):
         while True:
-            msg_type, data = self.get()
+            self.time, msg_type, data = self.get()
             if msg_type == LASER_ID:
                 self.update_laser(data)
             elif msg_type == ODOMETRY_ID:

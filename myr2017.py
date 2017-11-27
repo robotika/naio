@@ -23,14 +23,15 @@ class WrapperIO:
         self.log = log
         self.ignore_ref_output = ignore_ref_output
         self.buf = b''
+        self.time = None
 
     def get(self):
         if len(self.buf) < 1024:
             if self.soc is None:
-                data = self.log.read(INPUT_STREAM)[2]
+                self.time, __, data = self.log.read(INPUT_STREAM)
             else:
                 data = self.soc.recv(1024)
-                self.log.write(INPUT_STREAM, data)
+                self.time = self.log.write(INPUT_STREAM, data)
             self.buf += data
 
         assert len(self.buf) > 7 and self.buf[:6] == b'NAIO01', self.buf
@@ -38,7 +39,7 @@ class WrapperIO:
         size = struct.unpack('>I', self.buf[7:7+4])[0]
         data = self.buf[11:11+size]
         self.buf = self.buf[11+size+4:]  # cut CRC32
-        return msg_id, data
+        return self.time, msg_id, data
 
     def put(self, cmd):
         msg_id, data = cmd
@@ -96,11 +97,14 @@ def turn_right_90deg(robot):
     robot.annot(b'TAG:turn_right_90deg:BEGIN')
     robot.turn_right()
     gyro_sum = 0
+    prev_time = robot.time
+    num_updates = 0
     for i in range(100):
         robot.update()
         gyro_sum += robot.gyro_raw[2]  # time is required!
+        num_updates += 1
     robot.stop()
-    print('gyro_sum', gyro_sum)
+    print('gyro_sum', gyro_sum, robot.time - prev_time, num_updates)
     robot.annot(b'TAG:turn_right_90deg:END')
 
 
