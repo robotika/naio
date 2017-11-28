@@ -119,6 +119,26 @@ def turn_right_90deg(robot):
     robot.annot(b'TAG:turn_right_90deg:END')
 
 
+def turn_left_90deg(robot):
+    robot.annot(b'TAG:turn_left_90deg:BEGIN')
+    robot.turn_left()
+    gyro_sum = 0
+    start_time = robot.time
+    num_updates = 0
+    while robot.time - start_time < timedelta(minutes=1):
+        robot.update()
+        gyro_sum += robot.gyro_raw[2]  # time is required!
+        num_updates += 1
+        # the updates are 10Hz (based on laser measurements)
+        angle = (gyro_sum * 0.1) * 30.5/1000.0
+        # also it looks the rotation (in Simulatoz) is clockwise
+        if angle < -90.0:  # TODO lower threshold for minor corrections
+            break
+    robot.stop()
+    print('gyro_sum', gyro_sum, robot.time - start_time, num_updates)
+    robot.annot(b'TAG:turn_left_90deg:END')
+
+
 def navigate_row(robot, verbose):
     robot.move_forward()
     while True:
@@ -213,7 +233,20 @@ def main_replay(filename, force):
         print('REPLAY', log.filename)
 
 
-def play_game(robot, verbose):
+def test_1m(robot):
+    move_straight(robot, how_far=1.0)
+    robot.wait(timedelta(seconds=3))
+
+
+def test_90deg(robot):
+    robot.update()  # define time
+    turn_right_90deg(robot)
+    robot.wait(timedelta(seconds=3))
+    turn_left_90deg(robot)
+    robot.wait(timedelta(seconds=3))
+
+
+def test_loops(robot, verbose):
     for i in range(10):
         navigate_row(robot, verbose)
         move_straight(robot, how_far=1.2)
@@ -223,6 +256,31 @@ def play_game(robot, verbose):
 
     robot.stop()
     robot.update()
+
+
+def play_game(robot, verbose):
+    for i in range(2):
+        navigate_row(robot, verbose)
+        move_straight(robot, how_far=1.2)
+        turn_right_90deg(robot)
+        move_straight(robot, how_far=0.7)
+        turn_right_90deg(robot)
+
+    robot.stop()
+    robot.update()
+
+
+def run_robot(robot, verbose=False, test_case=None):
+    if test_case is None:
+        play_game(robot, verbose=verbose)
+    elif test_case == '1m':
+        test_1m(robot)
+    elif test_case == '90deg':
+        test_90deg(robot)
+    elif test_case == 'loops':
+        test_loops(robot, verbose=verbose)
+    else:
+        assert False, test_case  # not supported
 
 
 if __name__ == '__main__':
@@ -239,15 +297,17 @@ if __name__ == '__main__':
     parser.add_argument('--replay', help='replay existing log file')
     parser.add_argument('--force', '-F', dest='force', action='store_true',
                         help='force replay even for failing output asserts')
+    parser.add_argument('--test', dest='test_case', help='test cases',
+                        choices=['1m', '90deg', 'loops'])
     args = parser.parse_args()
     
     if args.replay is None:
         for robot in main(args.host, args.port, args.video_port):
-            play_game(robot, verbose=args.verbose)
+            run_robot(robot, test_case=args.test_case, verbose=args.verbose)
     else:
         for robot in main_replay(args.replay, args.force):
             try:
-                play_game(robot, verbose=args.verbose)
+                run_robot(robot, test_case=args.test_case, verbose=args.verbose)
             except LogEnd:
                 print("Exception LogEnd")
 
