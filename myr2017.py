@@ -140,22 +140,50 @@ def turn_left_90deg(robot):
 
 
 def navigate_row(robot, verbose):
+    MAX_GAP_SIZE = 13  # defined for plants on both sides
+    OPEN_SIZE = 17
+    OFFSET_SIZE = 5
+
     robot.move_forward()
-    while True:
+    end_of_row = False
+
+    while not end_of_row:
         robot.update()
         max_dist = max(robot.laser)
         triplet = laser2ascii(robot.laser)
         s, left, right = triplet
-        if left < right:
-            robot.move_right()
-        elif left > right:
-            robot.move_left()
+        if left + right < MAX_GAP_SIZE:
+            if left < right:
+                robot.move_right()
+            elif left > right:
+                robot.move_left()
+            else:
+                robot.move_forward()
         else:
-            robot.move_forward()
+            # full opening or plans on one side
+            if left < MAX_GAP_SIZE and right > OPEN_SIZE:
+                # plans on the left
+                if left < OFFSET_SIZE:
+                    robot.move_right()
+                elif left > OFFSET_SIZE:
+                    robot.move_left()
+                else:
+                    robot.move_forward()
+            elif left > OPEN_SIZE and right < MAX_GAP_SIZE:
+                # unexpected case!
+                if OFFSET_SIZE < right:
+                    robot.move_right()
+                elif OFFSET_SIZE > right:
+                    robot.move_left()
+                else:
+                    robot.move_forward()
+            else:
+                robot.move_forward()
+
         if verbose:
             print('%4d' % max_dist, triplet)
         if max_dist == 0:
-            break
+            end_of_row = True
 
 
 def connect(host, port):
@@ -259,12 +287,31 @@ def test_loops(robot, verbose):
 
 
 def play_game(robot, verbose):
-    for i in range(2):
-        navigate_row(robot, verbose)
-        move_straight(robot, how_far=1.2)
-        turn_right_90deg(robot)
-        move_straight(robot, how_far=0.7)
-        turn_right_90deg(robot)
+
+    # 1st row
+    navigate_row(robot, verbose)
+    move_straight(robot, how_far=1.2)
+    turn_right_90deg(robot)
+    move_straight(robot, how_far=0.7)
+    turn_right_90deg(robot)
+
+    # 2nd row
+    navigate_row(robot, verbose)
+    move_straight(robot, how_far=1.2)
+    turn_left_90deg(robot)
+    move_straight(robot, how_far=0.7)
+    turn_left_90deg(robot)
+
+    # 3rd row (from outside)
+    navigate_row(robot, verbose)
+    move_straight(robot, how_far=1.2)
+    turn_left_90deg(robot)
+    move_straight(robot, how_far=3*0.7)
+    turn_left_90deg(robot)
+
+    # 0th row (from outside)
+    navigate_row(robot, verbose)
+    move_straight(robot, how_far=1.2)
 
     robot.stop()
     robot.update()
