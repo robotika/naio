@@ -64,6 +64,14 @@ class Robot:
     def stop(self):
         self.motor_pwm = [0, 0]
 
+    def wait(self, how_long):
+        "how_long - time specified by timedelta"
+        if self.time is None:
+            self.update()
+        start_time = self.time
+        while self.time - start_time < how_long:
+            self.update()
+
     def update_laser(self, data):
         assert len(data) == 2*271 + 271, len(data)
         self.laser = struct.unpack('>' + 'H'*271, data[:2*271])
