@@ -106,11 +106,13 @@ def turn_right_90deg(robot):
     start_time = robot.time
     num_updates = 0
     while robot.time - start_time < timedelta(minutes=1):
+        prev_time = robot.time
         robot.update()
+        dt = robot.time - prev_time
         gyro_sum += robot.gyro_raw[2]  # time is required!
         num_updates += 1
         # the updates are 10Hz (based on laser measurements)
-        angle = (gyro_sum * 0.1) * 30.5/1000.0
+        angle = (gyro_sum * dt.total_seconds()) * 30.5/1000.0
         # also it looks the rotation (in Simulatoz) is clockwise
         if angle > 90.0:  # TODO lower threshold for minor corrections
             break
@@ -126,11 +128,13 @@ def turn_left_90deg(robot):
     start_time = robot.time
     num_updates = 0
     while robot.time - start_time < timedelta(minutes=1):
+        prev_time = robot.time
         robot.update()
+        dt = robot.time - prev_time
         gyro_sum += robot.gyro_raw[2]  # time is required!
         num_updates += 1
         # the updates are 10Hz (based on laser measurements)
-        angle = (gyro_sum * 0.1) * 30.5/1000.0
+        angle = (gyro_sum * dt.total_seconds()) * 30.5/1000.0
         # also it looks the rotation (in Simulatoz) is clockwise
         if angle < -90.0:  # TODO lower threshold for minor corrections
             break
