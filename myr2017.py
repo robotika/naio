@@ -147,6 +147,7 @@ def navigate_row(robot, verbose):
     MAX_GAP_SIZE = 13  # defined for plants on both sides
     OPEN_SIZE = 17
     OFFSET_SIZE = 5
+    END_OF_ROW_SIZE = 18 + 19  # for 180deg FOV
 
     robot.move_forward()
     end_of_row = False
@@ -186,7 +187,7 @@ def navigate_row(robot, verbose):
 
         if verbose:
             print('%4d' % max_dist, triplet)
-        if max_dist == 0:
+        if left + right >= END_OF_ROW_SIZE:
             end_of_row = True
 
 
