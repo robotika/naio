@@ -1,5 +1,7 @@
 import unittest
 from queue import Queue
+from datetime import timedelta
+
 from robot import *
 
 
@@ -10,14 +12,16 @@ class RoboTest(unittest.TestCase):
         q_out = Queue()
         robot = Robot(q_in.get, q_out.put, term=ODOMETRY_ID)
 
-        q_in.put((ODOMETRY_ID, b'\x00\x00\x00\x00'))
+        dt = timedelta(microseconds = 200)
+        q_in.put((dt, ODOMETRY_ID, b'\x00\x00\x00\x00'))
         robot.update()
+        self.assertEqual(robot.time, dt)
         self.assertFalse(q_out.empty())
         self.assertEqual(robot.odometry_left_raw, 0)
         self.assertEqual(robot.odometry_right_raw, 0)
         self.assertEqual(q_out.get(), (MOTOR_ID, b'\x00\x00'))
 
-        q_in.put((ODOMETRY_ID, b'\x01\x01\x00\x00'))
+        q_in.put((2*dt, ODOMETRY_ID, b'\x01\x01\x00\x00'))
         robot.update()
         self.assertFalse(q_out.empty())
         self.assertEqual(robot.odometry_left_raw, 0)
