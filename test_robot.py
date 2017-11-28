@@ -37,4 +37,19 @@ class RoboTest(unittest.TestCase):
         robot.annot(b'TAG:turn_right_90deg:BEGIN')
         self.assertEqual(q_annot.get_nowait(), b'TAG:turn_right_90deg:BEGIN')
 
+    def test_wait(self):
+        q_in = Queue()
+        q_out = Queue()
+        robot = Robot(q_in.get, q_out.put, term=ODOMETRY_ID)
+
+        dt = timedelta(seconds = 1)
+        for i in range(10):
+            q_in.put((i * dt, ODOMETRY_ID, b'\x00\x00\x00\x00'))
+
+        robot.wait(timedelta(seconds=3))
+        self.assertEqual(q_out.qsize(), 3 + 1)  # extra update for undefined time
+
+        robot.wait(timedelta(seconds=3))
+        self.assertEqual(q_out.qsize(), 3 + 1 + 3)
+
 # vim: expandtab sw=4 ts=4
