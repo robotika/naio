@@ -2,6 +2,7 @@
 
 import datetime
 import struct
+from threading import Lock
 
 
 INFO_STREM_ID = 0
@@ -12,6 +13,7 @@ class LogEnd(Exception):
 
 class LogWriter:
     def __init__(self, prefix='naio', note=''):
+        self.lock = Lock()
         self.start_time = datetime.datetime.now()
         self.filename = prefix + self.start_time.strftime("%y%m%d_%H%M%S.log")
         self.f = open(self.filename, 'wb')
@@ -25,6 +27,7 @@ class LogWriter:
             self.write(stream_id=INFO_STREM_ID, data=bytes(note, encoding='utf-8'))
 
     def write(self, stream_id, data):
+        self.lock.acquire()
         dt = datetime.datetime.now() - self.start_time
         assert dt.days == 0, dt
         assert dt.seconds < 3600, dt  # overflow not supported yet
@@ -33,6 +36,7 @@ class LogWriter:
                 stream_id, len(data)))
         self.f.write(data)
         self.f.flush()
+        self.lock.release()
         return dt
 
     def close(self):
