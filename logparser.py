@@ -84,11 +84,14 @@ def parse(filename, verbose, gyro_output=False):
                 assert size == 2*271 + 271, size
                 scan = struct.unpack('>' + 'H'*271, data[:2*271])
                 
+                # restrict laser view to 180deg
+                scan = scan[45:-45]
+
                 d = total_dist_raw * 6.465/400.0
                 pose_arr.append((d, 0))
                 for i, dist_mm in enumerate(scan):
                     if dist_mm > 0:
-                        angle = math.radians(i-135.0)
+                        angle = math.radians(i-90.0)
                         dist = dist_mm/1000.0
                         x, y = d + math.cos(angle)*dist, math.sin(angle)*dist
                         arr.append((x, y))

@@ -74,7 +74,7 @@ class Robot:
 
     def update_laser(self, data):
         assert len(data) == 2*271 + 271, len(data)
-        self.laser = struct.unpack('>' + 'H'*271, data[:2*271])
+        self.laser = struct.unpack('>' + 'H'*271, data[:2*271])[45:-45]
 
     def update_odometry(self, data):
         assert len(data) == 4, len(data)
