@@ -49,17 +49,19 @@ def naio_packets(log):
             read_more = True
 
 
-def parse(filename, verbose, gyro_output=False):
+def parse(filename, verbose, gyro_output=False, speed_output=False):
     with LogReader(filename) as log:
         prev_odo = b'\x00\x00\x00\x00'
         total_dist_raw = 0
         arr = []
         pose_arr = []
         gyro_arr = []
+        speed_arr = []
         for delta, item in naio_packets(log):
             prefix, item = item[:6], item[6:]
             assert prefix == b'NAIO01', prefix
             msg_id, item = item[:1], item[1:]
+            print(hex(msg_id[0]))
             size, item = struct.unpack('>I', item[:4])[0], item[4:]
             data, item = item[:size], item[size:]
             crc32, item = struct.unpack('I', item[:4])[0], item[4:]
@@ -68,8 +70,10 @@ def parse(filename, verbose, gyro_output=False):
             # Odometry
             if msg_id == b'\x06':
                 diff = sum([a^b for a, b in zip(prev_odo, data)])
+                assert diff <=4, diff
                 prev_odo = data
                 total_dist_raw += diff
+                speed_arr.append((delta.total_seconds(), total_dist_raw))
 
             # Gyro
             if msg_id == b'\x0A':
@@ -112,6 +116,18 @@ def parse(filename, verbose, gyro_output=False):
             plt.plot([x for x, _ in gyro_arr], [y for _, y in gyro_arr], 'o-')
             plt.xlabel('time (sec)')
             plt.ylabel('angular velocity (deg/sec)')
+        elif speed_output:
+            step = 20  # odometry is at 20Hz on real machine but 100Hz on simulation
+            out = []
+            for old, new in zip(speed_arr, speed_arr[step:]):
+                dt = new[0] - old[0]
+                t = (old[0] + new[0])/2.0
+                speed = ((new[1] - old[1]) * 6.465/400.0) / dt
+                out.append((t, speed))
+            speed_arr = out
+            plt.plot([x for x, _ in speed_arr], [y for _, y in speed_arr], 'o-')
+            plt.xlabel('time (s)')
+            plt.ylabel('velocity (m/s)')
         else:
             plt.plot([x for x, _ in arr], [y for _, y in arr],
                                  'o', linewidth=2)
@@ -129,8 +145,10 @@ if __name__ == '__main__':
     parser.add_argument('filename', help='logfile')
     parser.add_argument('--verbose', '-v', action='store_true', help='print intermediate output')
     parser.add_argument('--gyro', action='store_true', help='show gyro data')
+    parser.add_argument('--speed', action='store_true', help='show speed data')
     args = parser.parse_args()
 
-    parse(args.filename, verbose=args.verbose, gyro_output=args.gyro)
+    parse(args.filename, verbose=args.verbose, gyro_output=args.gyro,
+          speed_output=args.speed)
 
 # vim: expandtab sw=4 ts=4
