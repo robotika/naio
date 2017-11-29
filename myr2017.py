@@ -69,7 +69,7 @@ class WrapperIO:
             self.log.write(ANNOT_STREAM, annotation)
 
 
-def laser2ascii(scan):
+def laser2ascii(scan, limit = 1.0):
     "Eduro ASCII art"
     step = 5
     scan2 = [x == 0 and 10000 or x for x in scan]
@@ -82,7 +82,6 @@ def laser2ascii(scan):
     mid = int(len(s)/2)
     s = s[:mid] + 'C' + s[mid:]
 
-    limit = 1.0
     left, right = mid, mid
     while left > 0 and min_dist_arr[left] > limit:
         left -= 1
@@ -187,6 +186,9 @@ def navigate_row(robot, verbose):
         max_dist = max(robot.laser)
         triplet = laser2ascii(robot.laser)
         s, left, right = triplet
+
+        __, left2, right2 = laser2ascii(robot.laser, limit=1.5)
+
         if left + right < MAX_GAP_SIZE:
             if left < right:
                 robot.move_right()
@@ -200,13 +202,14 @@ def navigate_row(robot, verbose):
                 # plans on the left
                 if left < OFFSET_SIZE:
                     robot.move_right()
-                elif left > OFFSET_SIZE:
+                elif left > OFFSET_SIZE and left != left2:
+                    # ignore correction if further radius hits the same object
                     robot.move_left()
                 else:
                     robot.move_forward()
             elif left > OPEN_SIZE and right < MAX_GAP_SIZE:
                 # unexpected case!
-                if OFFSET_SIZE < right:
+                if OFFSET_SIZE < right and right != right2:
                     robot.move_right()
                 elif OFFSET_SIZE > right:
                     robot.move_left()
@@ -216,7 +219,7 @@ def navigate_row(robot, verbose):
                 robot.move_forward()
 
         if verbose:
-            print('%4d' % max_dist, triplet)
+            print('%4d' % max_dist, triplet, (left2, right2))
         if left + right >= END_OF_ROW_SIZE:
             end_of_row = True
 
