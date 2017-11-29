@@ -138,13 +138,13 @@ def turn_deg(robot, angle_deg):
 
 def turn_right_90deg(robot):
     robot.annot(b'TAG:turn_right_90deg:BEGIN')
-    turn_deg(robot, -90)
+    turn_deg(robot, -85)
     robot.annot(b'TAG:turn_right_90deg:END')
 
 
 def turn_left_90deg(robot):
     robot.annot(b'TAG:turn_left_90deg:BEGIN')
-    turn_deg(robot, 90)
+    turn_deg(robot, 85)
     robot.annot(b'TAG:turn_left_90deg:END')
 
 
@@ -331,6 +331,7 @@ def test_enter(robot, verbose):
 
 def play_game(robot, verbose):
 
+    robot.wait(timedelta(seconds=1))
     # 1st row
     navigate_row(robot, verbose)
     move_straight(robot, how_far=1.2)

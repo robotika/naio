@@ -10,7 +10,7 @@ GYRO_ID = 0x0A
 
 
 class Robot:
-    def __init__(self, get, put, annot=None, term=LASER_ID):
+    def __init__(self, get, put, annot=None, term=GYRO_ID):
         "provide input and output methods"
         self.get = get
         self.put = put
