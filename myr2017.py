@@ -123,6 +123,9 @@ def turn_deg(robot, angle_deg):
         prev_time = robot.time
         robot.update()
         dt = robot.time - prev_time
+        
+        dt = timedelta(microseconds=100000)  # hack for simulation
+
         gyro_sum += robot.gyro_raw[2]  # time is required!
         num_updates += 1
         # the updates are 10Hz (based on laser measurements)
