@@ -17,7 +17,7 @@ https://robotika.cz/competitions/move-your-robot/2017/
 python3 -h
 usage: myr2017.py [-h] [--host HOST] [--port PORT] [--note NOTE] [--verbose]
                   [--video-port VIDEO_PORT] [--replay REPLAY] [--force]
-                  [--test {1m,90deg,loops}]
+                  [--test {1m,90deg,loops,enter}]
 
 Navigate Naio robot in "Move Your Robot" competition
 
@@ -32,7 +32,7 @@ optional arguments:
                         video"
   --replay REPLAY       replay existing log file
   --force, -F           force replay even for failing output asserts
-  --test {1m,90deg,loops}
+  --test {1m,90deg,loops,enter}
                         test cases
 ```
 

@@ -22,6 +22,12 @@ VIDEO_STREAM = 3
 
 VIDEO_COMPRESSION_LEVEL = 7  # zlib parameter
 
+# Row navigation constants
+MAX_GAP_SIZE = 13  # defined for plants on both sides
+OPEN_SIZE = 17
+OFFSET_SIZE = 5
+END_OF_ROW_SIZE = 18 + 19  # for 180deg FOV
+
 
 class WrapperIO:
     def __init__(self, soc, log, ignore_ref_output=False):
@@ -143,11 +149,35 @@ def turn_left_90deg(robot):
     robot.annot(b'TAG:turn_left_90deg:END')
 
 
+def enter_field(robot, verbose):
+    robot.annot(b'TAG:enter_field:BEGIN')
+    if verbose:
+        print('enter_field')
+    if robot.time is None:
+        robot.update()
+
+    robot.move_forward()
+    start_time = robot.time
+    while robot.time - start_time < timedelta(minutes=1):        
+        robot.update()
+        triplet = laser2ascii(robot.laser)
+        s, left, right = triplet
+        if left + right < END_OF_ROW_SIZE:
+            # i.e. there is some obstacle within 1 meter radius
+            break
+        if verbose:
+            print('max_dist', max(robot.laser))
+
+    robot.stop()
+    robot.update()
+    robot.annot(b'TAG:enter_field:END')
+
+
 def navigate_row(robot, verbose):
-    MAX_GAP_SIZE = 13  # defined for plants on both sides
-    OPEN_SIZE = 17
-    OFFSET_SIZE = 5
-    END_OF_ROW_SIZE = 18 + 19  # for 180deg FOV
+    """navigate in 70cm rows or on the field border"""
+
+    # first make sure you are in the field
+    enter_field(robot, verbose)
 
     robot.move_forward()
     end_of_row = False
@@ -291,6 +321,11 @@ def test_loops(robot, verbose):
     robot.update()
 
 
+def test_enter(robot, verbose):
+    enter_field(robot, verbose)
+    robot.wait(timedelta(seconds=3))
+
+
 def play_game(robot, verbose):
 
     # 1st row
@@ -331,6 +366,8 @@ def run_robot(robot, verbose=False, test_case=None):
         test_90deg(robot)
     elif test_case == 'loops':
         test_loops(robot, verbose=verbose)
+    elif test_case == 'enter':
+        test_enter(robot, verbose=verbose)
     else:
         assert False, test_case  # not supported
 
@@ -350,7 +387,7 @@ if __name__ == '__main__':
     parser.add_argument('--force', '-F', dest='force', action='store_true',
                         help='force replay even for failing output asserts')
     parser.add_argument('--test', dest='test_case', help='test cases',
-                        choices=['1m', '90deg', 'loops'])
+                        choices=['1m', '90deg', 'loops', 'enter'])
     args = parser.parse_args()
     
     if args.replay is None:
