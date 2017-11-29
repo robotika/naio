@@ -12,8 +12,8 @@ from threading import Thread
 from logger import LogWriter, LogReader, LogEnd
 from robot import Robot
 
-DEFAULT_HOST = '127.0.0.1'    # The remote host
-DEFAULT_PORT = 5559              # The same port as used by the server
+DEFAULT_HOST = '10.42.0.243'    # The remote host
+DEFAULT_PORT = 5555              # The same port as used by the server
 
 ANNOT_STREAM = 0  # the same as debug/info
 INPUT_STREAM = 1
