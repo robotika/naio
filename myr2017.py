@@ -105,9 +105,17 @@ def move_straight(robot, how_far):
     robot.annot(b'TAG:move_one_meter:END')
 
 
-def turn_right_90deg(robot):
-    robot.annot(b'TAG:turn_right_90deg:BEGIN')
-    robot.turn_right()
+def turn_deg(robot, angle_deg):
+    """turn robot for desired angle in degrees"""
+    # left is positive angle, right negative
+    if angle_deg > 0:
+        robot.turn_left()
+    elif angle_deg < 0:
+        robot.turn_right()
+    else:
+        # angle_deg == 0
+        return
+
     gyro_sum = 0
     start_time = robot.time
     num_updates = 0
@@ -118,34 +126,23 @@ def turn_right_90deg(robot):
         gyro_sum += robot.gyro_raw[2]  # time is required!
         num_updates += 1
         # the updates are 10Hz (based on laser measurements)
-        angle = (gyro_sum * dt.total_seconds()) * 30.5/1000.0
+        angle = -(gyro_sum * dt.total_seconds()) * 30.5/1000.0
         # also it looks the rotation (in Simulatoz) is clockwise
-        if angle > 90.0:  # TODO lower threshold for minor corrections
+        if abs(angle) > abs(angle_deg):  # TODO lower threshold for minor corrections
             break
     robot.stop()
     print('gyro_sum', gyro_sum, robot.time - start_time, num_updates)
+
+
+def turn_right_90deg(robot):
+    robot.annot(b'TAG:turn_right_90deg:BEGIN')
+    turn_deg(robot, -90)
     robot.annot(b'TAG:turn_right_90deg:END')
 
 
 def turn_left_90deg(robot):
     robot.annot(b'TAG:turn_left_90deg:BEGIN')
-    robot.turn_left()
-    gyro_sum = 0
-    start_time = robot.time
-    num_updates = 0
-    while robot.time - start_time < timedelta(minutes=1):
-        prev_time = robot.time
-        robot.update()
-        dt = robot.time - prev_time
-        gyro_sum += robot.gyro_raw[2]  # time is required!
-        num_updates += 1
-        # the updates are 10Hz (based on laser measurements)
-        angle = (gyro_sum * dt.total_seconds()) * 30.5/1000.0
-        # also it looks the rotation (in Simulatoz) is clockwise
-        if angle < -90.0:  # TODO lower threshold for minor corrections
-            break
-    robot.stop()
-    print('gyro_sum', gyro_sum, robot.time - start_time, num_updates)
+    turn_deg(robot, 90)
     robot.annot(b'TAG:turn_left_90deg:END')
 
 
